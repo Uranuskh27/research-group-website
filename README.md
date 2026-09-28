@@ -38,7 +38,7 @@ GitHub Actions workflow publishes the static files from `main`.
 Current SEO defaults assume the GitHub Pages URL:
 
 ```txt
-https://khjchang.github.io/research-group-website/
+https://uranuskh27.github.io/research-group-website/
 ```
 
 If the site moves to a custom domain, update the URLs in:

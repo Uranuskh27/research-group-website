@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://khjchang.github.io/research-group-website/sitemap.xml
+Sitemap: https://uranuskh27.github.io/research-group-website/sitemap.xml

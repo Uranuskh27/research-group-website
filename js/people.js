@@ -7,6 +7,8 @@ const SECTION_IDS = {
   "Undergraduate Alumni": "undergraduate-alumni",
 };
 
+const DEFAULT_PERSON_IMAGE = "https://cdn-icons-png.flaticon.com/512/847/847969.png";
+
 const root = document.querySelector("[data-people-source]");
 
 if (root) {
@@ -114,8 +116,13 @@ function createPersonCard(person) {
 
   const image = document.createElement("img");
   image.className = "person-photo";
-  image.src = person.image;
+  image.src = person.image || DEFAULT_PERSON_IMAGE;
   image.alt = person.alt || person.name;
+  image.addEventListener("error", () => {
+    if (image.src !== DEFAULT_PERSON_IMAGE) {
+      image.src = DEFAULT_PERSON_IMAGE;
+    }
+  });
   if (person.name === "Hussain Al-Asaad") {
     image.id = "alasaad-photo";
   }
