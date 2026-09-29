@@ -116,7 +116,7 @@ function createPersonCard(person) {
 
   const image = document.createElement("img");
   image.className = "person-photo";
-  image.src = person.image || DEFAULT_PERSON_IMAGE;
+  image.src = getPersonImageUrl(person.image);
   image.alt = person.alt || person.name;
   image.addEventListener("error", () => {
     if (image.src !== DEFAULT_PERSON_IMAGE) {
@@ -144,6 +144,37 @@ function createPersonCard(person) {
 
   card.append(image, name, role, links);
   return card;
+}
+
+function getPersonImageUrl(imageUrl) {
+  if (!imageUrl) {
+    return DEFAULT_PERSON_IMAGE;
+  }
+
+  const driveFileId = getGoogleDriveFileId(imageUrl);
+  if (driveFileId) {
+    return `https://drive.google.com/thumbnail?id=${driveFileId}&sz=w600`;
+  }
+
+  return imageUrl;
+}
+
+function getGoogleDriveFileId(url) {
+  try {
+    const parsed = new URL(url);
+    if (!parsed.hostname.includes("drive.google.com")) {
+      return "";
+    }
+
+    const filePathMatch = parsed.pathname.match(/\/file\/d\/([^/]+)/);
+    if (filePathMatch) {
+      return filePathMatch[1];
+    }
+
+    return parsed.searchParams.get("id") || "";
+  } catch (error) {
+    return "";
+  }
 }
 
 function addEmailLink(container, person) {
