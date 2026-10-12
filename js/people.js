@@ -1,15 +1,50 @@
-const SECTION_IDS = {
-  "Professor": "PrincipalInvestigator",
-  "PhD Students": "phd",
-  "Master's Student": "masters",
-  "Undergraduate Student": "undergrad",
-  "Graduate Alumni": "graduate-alumni",
-  "Undergraduate Alumni": "undergraduate-alumni",
-};
+const SECTION_ORDER = [
+  {
+    key: "professor",
+    label: "Professor",
+    id: "PrincipalInvestigator",
+    aliases: ["professor"],
+  },
+  {
+    key: "phd",
+    label: "PhD Students",
+    id: "phd",
+    aliases: ["phd", "phd student", "phd students"],
+  },
+  {
+    key: "masters",
+    label: "Master's Student",
+    id: "masters",
+    aliases: ["ms", "master", "masters", "master's student", "masters student"],
+  },
+  {
+    key: "undergrad",
+    label: "Undergraduate Student",
+    id: "undergrad",
+    aliases: ["ud", "undergrad", "undergraduate", "undergraduate student"],
+  },
+  {
+    key: "graduate-alumni",
+    label: "Graduate Alumni",
+    id: "graduate-alumni",
+    aliases: ["graduate alu", "graduate alumni", "grad alumni"],
+  },
+  {
+    key: "undergraduate-alumni",
+    label: "Undergraduate Alumni",
+    id: "undergraduate-alumni",
+    aliases: ["ud alu", "undergraduate alu", "undergraduate alumni", "undergrad alumni"],
+  },
+];
+
+const SECTION_BY_ALIAS = SECTION_ORDER.reduce((sections, section) => {
+  section.aliases.forEach((alias) => sections.set(normalizeSectionName(alias), section));
+  return sections;
+}, new Map());
 
 const DEFAULT_PERSON_IMAGE = "https://cdn-icons-png.flaticon.com/512/847/847969.png";
 
-const root = document.querySelector("[data-people-source]");
+const root = document.querySelector("[data-people-source], [data-people-sources]");
 
 if (root) {
   loadPeople(root);
@@ -17,13 +52,15 @@ if (root) {
 
 async function loadPeople(container) {
   try {
-    const response = await fetch(container.dataset.peopleSource, { cache: "no-store" });
+    const sources = getPeopleSources(container);
 
-    if (!response.ok) {
-      throw new Error(`Unable to load people data: ${response.status}`);
+    if (!sources.length) {
+      throw new Error("No people data source configured.");
     }
 
-    const rows = parseCsv(await response.text())
+    const csvFiles = await Promise.all(sources.map(fetchPeopleCsv));
+    const rows = csvFiles
+      .flatMap((csv) => parseCsv(csv))
       .filter((row) => row.active.toUpperCase() !== "FALSE")
       .sort((a, b) => Number(a.sort || 0) - Number(b.sort || 0));
 
@@ -32,6 +69,24 @@ async function loadPeople(container) {
     container.innerHTML = '<p class="main-page-font-size">Unable to load lab members.</p>';
     console.error(error);
   }
+}
+
+function getPeopleSources(container) {
+  const sources = container.dataset.peopleSources || container.dataset.peopleSource || "";
+  return sources
+    .split(/\s+/)
+    .map((source) => source.trim())
+    .filter(Boolean);
+}
+
+async function fetchPeopleCsv(source) {
+  const response = await fetch(source, { cache: "no-store" });
+
+  if (!response.ok) {
+    throw new Error(`Unable to load people data: ${response.status}`);
+  }
+
+  return response.text();
 }
 
 function parseCsv(csv) {
@@ -80,9 +135,27 @@ function renderPeople(container, people) {
   const sections = groupBySection(people);
   container.innerHTML = "";
 
-  for (const [section, members] of sections) {
+  for (const section of SECTION_ORDER) {
+    const sectionGroup = sections.get(section.key);
+    if (!sectionGroup || !sectionGroup.members.length) {
+      continue;
+    }
+
+    appendPeopleSection(container, section.label, section.id, sectionGroup.members);
+  }
+
+  for (const [sectionKey, section] of sections) {
+    if (SECTION_ORDER.some((orderedSection) => orderedSection.key === sectionKey)) {
+      continue;
+    }
+
+    appendPeopleSection(container, section.label, slugify(section.label), section.members);
+  }
+}
+
+function appendPeopleSection(container, section, id, members) {
     const sectionElement = document.createElement("div");
-    sectionElement.id = SECTION_IDS[section] || slugify(section);
+    sectionElement.id = id;
 
     const heading = document.createElement("h1");
     heading.className = "project";
@@ -94,20 +167,40 @@ function renderPeople(container, people) {
     members.forEach((member) => grid.appendChild(createPersonCard(member)));
     sectionElement.append(heading, grid);
     container.appendChild(sectionElement);
-  }
 }
 
 function groupBySection(people) {
   const grouped = new Map();
 
   for (const person of people) {
-    if (!grouped.has(person.section)) {
-      grouped.set(person.section, []);
+    const section = getSectionConfig(person.section);
+    if (!grouped.has(section.key)) {
+      grouped.set(section.key, { label: section.label, members: [] });
     }
-    grouped.get(person.section).push(person);
+    grouped.get(section.key).members.push(person);
+  }
+
+  for (const section of grouped.values()) {
+    section.members.sort((a, b) => Number(a.sort || 0) - Number(b.sort || 0));
   }
 
   return grouped;
+}
+
+function getSectionConfig(sectionName) {
+  const normalized = normalizeSectionName(sectionName);
+  return SECTION_BY_ALIAS.get(normalized) || {
+    key: normalized || "other",
+    label: sectionName || "Other",
+  };
+}
+
+function normalizeSectionName(sectionName) {
+  return String(sectionName || "")
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 function createPersonCard(person) {
