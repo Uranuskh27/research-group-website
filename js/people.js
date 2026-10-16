@@ -211,6 +211,9 @@ function createPersonCard(person) {
   image.className = "person-photo";
   image.src = getPersonImageUrl(person.image);
   image.alt = person.alt || person.name;
+  image.loading = "lazy";
+  image.decoding = "async";
+  image.referrerPolicy = "no-referrer";
   image.addEventListener("error", () => {
     if (image.src !== DEFAULT_PERSON_IMAGE) {
       image.src = DEFAULT_PERSON_IMAGE;
@@ -249,7 +252,7 @@ function getPersonImageUrl(imageUrl) {
     return `https://drive.google.com/thumbnail?id=${driveFileId}&sz=w600`;
   }
 
-  return imageUrl;
+  return sanitizeWebUrl(imageUrl) || DEFAULT_PERSON_IMAGE;
 }
 
 function getGoogleDriveFileId(url) {
@@ -289,12 +292,13 @@ function addEmailLink(container, person) {
 }
 
 function addIconLink(container, href, className, label, iconClass) {
-  if (!href) {
+  const safeHref = sanitizeWebUrl(href);
+  if (!safeHref) {
     return;
   }
 
   const link = document.createElement("a");
-  link.href = href;
+  link.href = safeHref;
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   link.className = `social ${className}`;
@@ -304,19 +308,37 @@ function addIconLink(container, href, className, label, iconClass) {
 }
 
 function addScholarLink(container, href) {
-  if (!href) {
+  const safeHref = sanitizeWebUrl(href);
+  if (!safeHref) {
     return;
   }
 
   const link = document.createElement("a");
-  link.href = href;
+  link.href = safeHref;
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   link.className = "social scholar";
   link.ariaLabel = "Google Scholar";
-  link.innerHTML =
-    '<img src="https://www.svgrepo.com/show/349396/google-scholar.svg" alt="Google Scholar" style="width: 24px; height: 24px" />';
+  const icon = document.createElement("img");
+  icon.src = "https://www.svgrepo.com/show/349396/google-scholar.svg";
+  icon.alt = "Google Scholar";
+  icon.className = "scholar-icon";
+  icon.referrerPolicy = "no-referrer";
+  link.appendChild(icon);
   container.appendChild(link);
+}
+
+function sanitizeWebUrl(value) {
+  if (!value) {
+    return "";
+  }
+
+  try {
+    const url = new URL(value, window.location.href);
+    return ["http:", "https:"].includes(url.protocol) ? url.href : "";
+  } catch (error) {
+    return "";
+  }
 }
 
 function slugify(value) {

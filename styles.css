@@ -508,6 +508,11 @@ body {
   border: 1px solid #ccc;
 }
 
+.scholar-icon {
+  width: 24px;
+  height: 24px;
+}
+
 .photo-wrapper {
   width: var(--avatar-size);
   height: var(--avatar-size);
